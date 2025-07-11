@@ -258,6 +258,7 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter, useRoute } from 'vue-router'
 import { useStudentStore } from '@/stores/student'
 import Layout from '@/components/Layout.vue'
@@ -283,7 +284,7 @@ const form = reactive({
 })
 
 const classes = ref([])
-const { loading, errors, student } = studentStore
+const { loading, errors, student } = storeToRefs(studentStore)
 
 const submitForm = async () => {
   studentStore.clearErrors()

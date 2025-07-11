@@ -4,7 +4,26 @@
       <!-- Header with filters -->
       <div class="bg-white rounded-lg shadow-sm p-6">
         <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-          <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-4 flex-wrap">
+            <!-- Search Input -->
+            <div class="relative">
+              <input
+                v-model="filters.search"
+                @input="fetchGrades"
+                type="text"
+                placeholder="Search by student name or ID..."
+                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+              />
+              <svg
+                class="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+            
             <select
               v-model="filters.subject_id"
               @change="fetchGrades"
@@ -37,6 +56,14 @@
                 {{ cls.name }}
               </option>
             </select>
+            
+            <!-- Clear Filters Button -->
+            <button
+              @click="clearFilters"
+              class="px-3 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Clear
+            </button>
           </div>
 
           <div class="flex items-center space-x-4">
@@ -319,6 +346,7 @@
 
 <script setup>
 import { ref, onMounted, computed, reactive } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useGradeStore } from '@/stores/grade'
 import { useStudentStore } from '@/stores/student'
 import Layout from '@/components/Layout.vue'
@@ -334,7 +362,8 @@ const gradeToDelete = ref(null)
 const filters = reactive({
   subject_id: '',
   term_id: '',
-  class_id: ''
+  class_id: '',
+  search: ''
 })
 
 const gradeForm = reactive({
@@ -347,25 +376,33 @@ const gradeForm = reactive({
 const students = ref([])
 const classes = ref([])
 
-const { loading, grades, subjects, terms, errors } = gradeStore
+const { loading, grades, subjects, terms, errors } = storeToRefs(gradeStore)
 
 const averageScore = computed(() => {
-  if (grades.length === 0) return 0
-  return grades.reduce((sum, grade) => sum + grade.score, 0) / grades.length
+  if (grades.value.length === 0) return 0
+  return grades.value.reduce((sum, grade) => sum + grade.score, 0) / grades.value.length
 })
 
 const highestScore = computed(() => {
-  if (grades.length === 0) return 0
-  return Math.max(...grades.map(grade => grade.score))
+  if (grades.value.length === 0) return 0
+  return Math.max(...grades.value.map(grade => grade.score))
 })
 
 const lowestScore = computed(() => {
-  if (grades.length === 0) return 0
-  return Math.min(...grades.map(grade => grade.score))
+  if (grades.value.length === 0) return 0
+  return Math.min(...grades.value.map(grade => grade.score))
 })
 
 const fetchGrades = async () => {
   await gradeStore.fetchGrades(filters)
+}
+
+const clearFilters = () => {
+  filters.subject_id = ''
+  filters.term_id = ''
+  filters.class_id = ''
+  filters.search = ''
+  fetchGrades()
 }
 
 const fetchStudents = async () => {

@@ -11,8 +11,10 @@
                 v-model="selectedDate"
                 type="date"
                 @change="fetchAttendance"
+                placeholder="Select date (optional)"
                 class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p class="text-xs text-gray-500 mt-1">Leave empty to show all records</p>
             </div>
             
             <div>
@@ -29,13 +31,24 @@
               </select>
             </div>
 
-            <div class="pt-6">
+            <div class="pt-6 flex space-x-2">
               <button
                 @click="fetchAttendance"
                 class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                title="Refresh"
               >
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+              </button>
+              
+              <button
+                @click="clearFilters"
+                class="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                title="Clear Filters"
+              >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
               </button>
             </div>
@@ -63,6 +76,18 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- Success Message -->
+      <div v-if="showSuccess" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+        <strong class="font-bold">{{ successMessage.includes('Error') ? 'Error!' : 'Success!' }}</strong>
+        <span class="block sm:inline"> {{ successMessage }}</span>
+        <span @click="showSuccess = false" class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer">
+          <svg class="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+            <title>Close</title>
+            <path d="M14.348 5.652a.5.5 0 0 0-.707 0L10 9.293 6.36 5.652a.5.5 0 0 0-.707.707L9.293 10l-3.64 3.64a.5.5 0 0 0 .707.708L10 10.707l3.64 3.641a.5.5 0 0 0 .708-.708L10.707 10l3.641-3.64a.5.5 0 0 0 0-.708z"/>
+          </svg>
+        </span>
       </div>
 
       <!-- Attendance Statistics -->
@@ -128,7 +153,7 @@
       <div class="bg-white rounded-lg shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200">
           <h3 class="text-lg font-semibold text-gray-900">
-            Attendance for {{ formatDate(selectedDate) }}
+            {{ getAttendanceTitle() }}
           </h3>
         </div>
         
@@ -265,6 +290,7 @@
 
 <script setup>
 import { ref, onMounted, computed, reactive } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAttendanceStore } from '@/stores/attendance'
 import { useStudentStore } from '@/stores/student'
 import Layout from '@/components/Layout.vue'
@@ -272,16 +298,18 @@ import Layout from '@/components/Layout.vue'
 const attendanceStore = useAttendanceStore()
 const studentStore = useStudentStore()
 
-const selectedDate = ref(new Date().toISOString().split('T')[0])
+const selectedDate = ref('')
 const selectedClass = ref('')
 const showAttendanceHistory = ref(false)
+const successMessage = ref('')
+const showSuccess = ref(false)
 
 const students = ref([])
 const classes = ref([])
 const attendanceData = reactive({})
 const recentAttendance = ref([])
 
-const { loading, attendances, errors } = attendanceStore
+const { loading, attendances, errors } = storeToRefs(attendanceStore)
 
 const presentCount = computed(() => {
   return Object.values(attendanceData).filter(status => status === 'present').length
@@ -297,8 +325,35 @@ const attendanceRate = computed(() => {
 })
 
 const fetchStudentsAndAttendance = async () => {
-  await fetchStudents()
-  await fetchAttendance()
+  try {
+    // Get students with attendance for the selected date and class
+    const className = selectedClass.value ? getClassNameById(selectedClass.value) : null
+    const dateParam = selectedDate.value || null // Send null if no date selected
+    const response = await attendanceStore.getAttendanceByDateAndClass(dateParam, className)
+    
+    students.value = response.data || []
+    
+    // Initialize attendance data with persisted status
+    Object.keys(attendanceData).forEach(key => delete attendanceData[key])
+    
+    students.value.forEach(student => {
+      attendanceData[student.id] = student.status
+    })
+
+    // Fetch recent attendance history
+    await fetchRecentAttendance()
+  } catch (error) {
+    console.error('Error fetching students and attendance:', error)
+    // Set empty students array on error
+    students.value = []
+    
+    // Show error message
+    successMessage.value = 'Error loading attendance data. Please try again.'
+    showSuccess.value = true
+    setTimeout(() => {
+      showSuccess.value = false
+    }, 3000)
+  }
 }
 
 const fetchStudents = async () => {
@@ -312,24 +367,12 @@ const fetchStudents = async () => {
 }
 
 const fetchAttendance = async () => {
-  const filters = {
-    date: selectedDate.value
-  }
-  if (selectedClass.value) {
-    filters.class_id = selectedClass.value
-  }
-  
-  await attendanceStore.fetchAttendances(filters)
-  
-  // Initialize attendance data
-  Object.keys(attendanceData).forEach(key => delete attendanceData[key])
-  
-  attendances.forEach(attendance => {
-    attendanceData[attendance.student_id] = attendance.status
-  })
+  await fetchStudentsAndAttendance()
+}
 
-  // Fetch recent attendance history
-  await fetchRecentAttendance()
+const getClassNameById = (classId) => {
+  const cls = classes.value.find(c => c.id == classId)
+  return cls ? cls.name : null
 }
 
 const fetchRecentAttendance = async () => {
@@ -375,15 +418,31 @@ const saveAttendance = async () => {
   const attendanceList = students.value.map(student => ({
     student_id: student.id,
     date: selectedDate.value,
-    status: attendanceData[student.id] || 'absent',
-    class_id: selectedClass.value || null
+    status: attendanceData[student.id] || 'present'
   }))
 
   try {
-    await attendanceStore.bulkMarkAttendance(attendanceList)
-    await fetchAttendance() // Refresh data
+    const className = selectedClass.value ? getClassNameById(selectedClass.value) : null
+    const response = await attendanceStore.bulkMarkAttendance(attendanceList, true, className)
+    
+    // Show success message
+    successMessage.value = response.message || 'Attendance saved successfully!'
+    showSuccess.value = true
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+      showSuccess.value = false
+    }, 3000)
+    
+    await fetchStudentsAndAttendance() // Refresh data
   } catch (error) {
     console.error('Error saving attendance:', error)
+    // Show error message
+    successMessage.value = 'Error saving attendance. Please try again.'
+    showSuccess.value = true
+    setTimeout(() => {
+      showSuccess.value = false
+    }, 3000)
   }
 }
 
@@ -402,6 +461,27 @@ const formatDate = (date) => {
 
 const formatTime = (datetime) => {
   return new Date(datetime).toLocaleTimeString()
+}
+
+const clearFilters = () => {
+  selectedDate.value = ''
+  selectedClass.value = ''
+  fetchStudentsAndAttendance()
+}
+
+const getAttendanceTitle = () => {
+  if (!selectedDate.value && !selectedClass.value) {
+    return 'All Attendance Records'
+  } else if (selectedDate.value && selectedClass.value) {
+    const className = getClassNameById(selectedClass.value)
+    return `Attendance for ${className} - ${formatDate(selectedDate.value)}`
+  } else if (selectedDate.value) {
+    return `Attendance for ${formatDate(selectedDate.value)}`
+  } else if (selectedClass.value) {
+    const className = getClassNameById(selectedClass.value)
+    return `Attendance for ${className}`
+  }
+  return 'Attendance Records'
 }
 
 onMounted(async () => {

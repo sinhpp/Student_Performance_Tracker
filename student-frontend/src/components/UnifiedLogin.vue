@@ -23,6 +23,7 @@
             >
               <option value="">Select Role</option>
               <option value="admin">Administrator</option>
+              <option value="teacher">Teacher</option>
               <option value="student">Student</option>
             </select>
           </div>
@@ -54,15 +55,8 @@
           </div>
         </div>
 
-        <!-- Error Messages -->
         <div v-if="authStore.errors.general" class="text-red-600 text-sm">
           {{ authStore.errors.general[0] }}
-        </div>
-        <div v-if="authStore.errors.email" class="text-red-600 text-sm">
-          {{ authStore.errors.email[0] }}
-        </div>
-        <div v-if="authStore.errors.password" class="text-red-600 text-sm">
-          {{ authStore.errors.password[0] }}
         </div>
 
         <div>
@@ -86,6 +80,13 @@
               class="text-left p-2 border rounded hover:bg-gray-50"
             >
               <strong>Admin:</strong> Select "Administrator" → admin@example.com / admin123
+            </button>
+            <button
+              type="button"
+              @click="fillDemo('teacher')"
+              class="text-left p-2 border rounded hover:bg-gray-50"
+            >
+              <strong>Teacher:</strong> Select "Teacher" → teacher@example.com / teacher123
             </button>
             <button
               type="button"
@@ -130,6 +131,9 @@ const handleLogin = async () => {
     if (form.value.role === 'admin') {
       console.log('Redirecting to admin frontend')
       window.location.href = 'http://localhost:5173/dashboard'
+    } else if (form.value.role === 'teacher') {
+      console.log('Redirecting teacher to dashboard')
+      router.push('/dashboard')
     } else if (form.value.role === 'student') {
       console.log('Redirecting student to dashboard')
       router.push('/dashboard')
@@ -144,6 +148,10 @@ const fillDemo = (type) => {
     form.value.role = 'admin'
     form.value.email = 'admin@example.com'
     form.value.password = 'admin123'
+  } else if (type === 'teacher') {
+    form.value.role = 'teacher'
+    form.value.email = 'teacher@example.com'
+    form.value.password = 'teacher123'
   } else if (type === 'student') {
     form.value.role = 'student'
     form.value.email = 'student@example.com'

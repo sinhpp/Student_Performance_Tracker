@@ -7,14 +7,22 @@
           <div class="flex items-center space-x-4">
             <div class="relative">
               <input
-                v-model="searchQuery"
+                v-model="filters.name"
                 type="text"
-                placeholder="Search students..."
+                placeholder="Search by name..."
                 class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
+            </div>
+            <div class="relative">
+              <input
+                v-model="filters.student_id"
+                type="text"
+                placeholder="Search by Student ID..."
+                class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
             <button
               @click="fetchStudents"
@@ -34,6 +42,72 @@
             </svg>
             <span>Add Student</span>
           </router-link>
+        </div>
+
+        <!-- Filters Row -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Class</label>
+            <select 
+              v-model="filters.class"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Classes</option>
+              <option value="1A">1A</option>
+              <option value="1B">1B</option>
+              <option value="2A">2A</option>
+              <option value="2B">2B</option>
+              <option value="3A">3A</option>
+              <option value="3B">3B</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+            <select 
+              v-model="filters.status"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="graduated">Graduated</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sort by Class</label>
+            <select 
+              v-model="sort.sort_by_class"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">No Sort</option>
+              <option value="asc">A to Z</option>
+              <option value="desc">Z to A</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sort by Status</label>
+            <select 
+              v-model="sort.sort_by_status"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">No Sort</option>
+              <option value="asc">A to Z</option>
+              <option value="desc">Z to A</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Clear Filters Button -->
+        <div class="flex justify-end">
+          <button
+            @click="clearFilters"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Clear Filters
+          </button>
         </div>
       </div>
 
@@ -69,12 +143,12 @@
                   Loading students...
                 </td>
               </tr>
-              <tr v-else-if="filteredStudents.length === 0">
+              <tr v-else-if="students.length === 0">
                 <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                   No students found
                 </td>
               </tr>
-              <tr v-else v-for="student in filteredStudents" :key="student.id" class="hover:bg-gray-50">
+              <tr v-else v-for="student in students" :key="student.id" class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
                     <div class="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
@@ -186,31 +260,62 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useStudentStore } from '@/stores/student'
 import Layout from '@/components/Layout.vue'
 
 const studentStore = useStudentStore()
-const searchQuery = ref('')
 const showDeleteModal = ref(false)
 const studentToDelete = ref(null)
 
-const { loading, students, pagination, errors } = studentStore
-
-const filteredStudents = computed(() => {
-  if (!searchQuery.value) return students
-  return students.filter(student => 
-    student.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    (student.student_id && student.student_id.toLowerCase().includes(searchQuery.value.toLowerCase()))
-  )
+// Filter and sort state
+const filters = ref({
+  name: '',
+  student_id: '',
+  class: '',
+  status: ''
 })
 
+const sort = ref({
+  sort_by_class: '',
+  sort_by_status: ''
+})
+
+const { loading, students, pagination, errors } = storeToRefs(studentStore)
+
 const fetchStudents = async (page = 1) => {
-  await studentStore.fetchStudents(page)
+  const params = {
+    page,
+    ...filters.value,
+    ...sort.value
+  }
+  
+  // Remove empty values
+  Object.keys(params).forEach(key => {
+    if (params[key] === '' || params[key] === null || params[key] === undefined) {
+      delete params[key]
+    }
+  })
+  
+  await studentStore.fetchStudents(page, params)
+}
+
+const clearFilters = () => {
+  filters.value = {
+    name: '',
+    student_id: '',
+    class: '',
+    status: ''
+  }
+  sort.value = {
+    sort_by_class: '',
+    sort_by_status: ''
+  }
+  fetchStudents()
 }
 
 const changePage = (page) => {
-  if (page >= 1 && page <= pagination.last_page) {
+  if (page >= 1 && page <= pagination.value.last_page) {
     fetchStudents(page)
   }
 }
@@ -226,17 +331,17 @@ const deleteStudent = async () => {
       await studentStore.deleteStudent(studentToDelete.value.id)
       showDeleteModal.value = false
       studentToDelete.value = null
+      fetchStudents() // Refresh the list
     } catch (error) {
       console.error('Error deleting student:', error)
     }
   }
 }
 
-// Watch for search query changes
-watch(searchQuery, () => {
-  // If using API-based search, you might want to debounce this
-  // For now, we're filtering client-side
-})
+// Watch for filter changes and automatically refresh
+watch([filters, sort], () => {
+  fetchStudents()
+}, { deep: true })
 
 onMounted(() => {
   fetchStudents()

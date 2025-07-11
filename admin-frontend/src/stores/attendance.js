@@ -69,30 +69,56 @@ export const useAttendanceStore = defineStore('attendance', {
       }
     },
 
-    async bulkMarkAttendance(attendanceList) {
+    async bulkMarkAttendance(attendanceList, saveToHistory = false, className = null) {
       this.loading = true
       this.errors = {}
       try {
         const response = await api.post('/admin/attendance/bulk', {
-          attendances: attendanceList
+          attendances: attendanceList,
+          save_to_history: saveToHistory,
+          class: className
         })
         
         // Update attendances array
-        response.data.forEach(newAttendance => {
-          const existingIndex = this.attendances.findIndex(a => 
-            a.student_id === newAttendance.student_id && 
-            a.date === newAttendance.date
-          )
-          
-          if (existingIndex !== -1) {
-            this.attendances[existingIndex] = newAttendance
-          } else {
-            this.attendances.unshift(newAttendance)
-          }
-        })
+        if (response.data.data) {
+          response.data.data.forEach(newAttendance => {
+            const existingIndex = this.attendances.findIndex(a => 
+              a.student_id === newAttendance.student_id && 
+              a.date === newAttendance.date
+            )
+            
+            if (existingIndex !== -1) {
+              this.attendances[existingIndex] = newAttendance
+            } else {
+              this.attendances.unshift(newAttendance)
+            }
+          })
+        }
         
         return response.data
       } catch (error) {
+        this.errors = error.response?.data?.errors || {}
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async getAttendanceByDateAndClass(date, className = null) {
+      this.loading = true
+      try {
+        const params = {}
+        if (date) {
+          params.date = date
+        }
+        if (className) {
+          params.class = className
+        }
+        
+        const response = await api.get('/admin/attendance/by-date-class', { params })
+        return response.data
+      } catch (error) {
+        console.error('Fetch attendance by date and class error:', error)
         this.errors = error.response?.data?.errors || {}
         throw error
       } finally {

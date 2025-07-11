@@ -16,7 +16,19 @@ class AuthController extends Controller
         'name' => 'required|string',
         'email' => 'required|email|unique:users',
         'password' => 'required|min:6|confirmed',
-        'role' => 'required|in:admin,student',
+        'role' => 'required|in:teacher,student', // Only teachers and students can register
+        'phone' => 'nullable|string',
+        
+        // Teacher-specific fields
+        'employee_id' => 'nullable|string',
+        'department' => 'nullable|string',
+        'specialization' => 'nullable|string',
+        'hire_date' => 'nullable|date',
+        'address' => 'nullable|string',
+        'subject_ids' => 'nullable|array',
+        'subject_ids.*' => 'integer|exists:subjects,id',
+        'class_ids' => 'nullable|array',
+        'class_ids.*' => 'integer|exists:school_classes,id',
     ]);
 
     $user = User::create([
@@ -24,7 +36,32 @@ class AuthController extends Controller
         'email' => $validated['email'],
         'password' => Hash::make($validated['password']),
         'role' => $validated['role'],
+        'phone' => $validated['phone'] ?? null,
     ]);
+
+    // If registering as teacher, create teacher profile and relationships
+    if ($validated['role'] === 'teacher') {
+        $teacher = \App\Models\Teacher::create([
+            'user_id' => $user->id,
+            'employee_id' => $validated['employee_id'] ?? 'TCH' . str_pad($user->id, 3, '0', STR_PAD_LEFT),
+            'department' => $validated['department'] ?? null,
+            'specialization' => $validated['specialization'] ?? null,
+            'hire_date' => $validated['hire_date'] ?? now(),
+            'phone' => $validated['phone'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'status' => 'active',
+        ]);
+
+        // Attach subjects
+        if (!empty($validated['subject_ids'])) {
+            $teacher->subjects()->attach($validated['subject_ids']);
+        }
+
+        // Attach classes
+        if (!empty($validated['class_ids'])) {
+            $teacher->classes()->attach($validated['class_ids']);
+        }
+    }
 
     return response()->json(['message' => 'User registered successfully']);
 }
@@ -34,7 +71,7 @@ public function login(Request $request)
     $validated = $request->validate([
         'email' => 'required|email',
         'password' => 'required',
-        'role' => 'required|in:admin,student'
+        'role' => 'sometimes|in:admin,teacher,student' // Optional role for role-specific login
     ]);
 
     $credentials = $request->only('email', 'password');
@@ -45,10 +82,10 @@ public function login(Request $request)
 
     $user = Auth::user();
     
-    // Verify the user's role matches the selected role
-    if ($user->role !== $validated['role']) {
+    // If role is specified, verify it matches the user's actual role
+    if (isset($validated['role']) && $user->role !== $validated['role']) {
         Auth::logout();
-        return response()->json(['message' => 'Role mismatch. Please select the correct role.'], 403);
+        return response()->json(['message' => 'Invalid role selected for this account.'], 403);
     }
 
     $token = $user->createToken('auth_token')->plainTextToken;

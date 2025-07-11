@@ -37,12 +37,18 @@ export const useUnifiedAuthStore = defineStore('unifiedAuth', {
           console.warn('CSRF cookie not available, continuing without it')
         }
         
-        // Role-based login endpoint
-        const response = await api.post('/login', {
+        // Role-specific login endpoint
+        const loginData = {
           email: credentials.email,
-          password: credentials.password,
-          role: credentials.role
-        })
+          password: credentials.password
+        }
+        
+        // Include role if provided
+        if (credentials.role) {
+          loginData.role = credentials.role
+        }
+        
+        const response = await api.post('/login', loginData)
         
         this.token = response.data.access_token
         this.user = response.data.user
@@ -53,7 +59,7 @@ export const useUnifiedAuthStore = defineStore('unifiedAuth', {
         return response.data
       } catch (error) {
         // Demo mode fallback for development
-        if (credentials.email === 'admin@example.com' && credentials.password === 'admin123' && credentials.role === 'admin') {
+        if (credentials.email === 'admin@example.com' && credentials.password === 'admin123') {
           this.token = 'demo-admin-token'
           this.user = { 
             id: 1, 
@@ -65,7 +71,19 @@ export const useUnifiedAuthStore = defineStore('unifiedAuth', {
           return { user: this.user, access_token: this.token }
         }
         
-        if (credentials.email === 'student@example.com' && credentials.password === 'student123' && credentials.role === 'student') {
+        if (credentials.email === 'teacher@example.com' && credentials.password === 'teacher123') {
+          this.token = 'demo-teacher-token'
+          this.user = { 
+            id: 3, 
+            name: 'Demo Teacher', 
+            email: 'teacher@example.com', 
+            role: 'teacher' 
+          }
+          localStorage.setItem('auth_token', this.token)
+          return { user: this.user, access_token: this.token }
+        }
+        
+        if (credentials.email === 'student@example.com' && credentials.password === 'student123') {
           this.token = 'demo-student-token'
           this.user = { 
             id: 2, 
@@ -118,6 +136,13 @@ export const useUnifiedAuthStore = defineStore('unifiedAuth', {
             name: 'Demo Admin', 
             email: 'admin@example.com', 
             role: 'admin' 
+          }
+        } else if (this.token === 'demo-teacher-token') {
+          this.user = { 
+            id: 3, 
+            name: 'Demo Teacher', 
+            email: 'teacher@example.com', 
+            role: 'teacher' 
           }
         } else if (this.token === 'demo-student-token') {
           this.user = { 

@@ -301,10 +301,21 @@ const submitForm = async () => {
   
   try {
     // Map form fields to backend expected format
+    const selectedClass = classes.value.find(cls => cls.id === form.class_id)
     const studentData = {
-      ...form,
-      dob: form.date_of_birth, // Backend expects 'dob', form has 'date_of_birth'
-      class: form.class_id      // Backend expects 'class', form has 'class_id'
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      phone: form.phone,
+      dob: form.date_of_birth,
+      gender: form.gender,
+      class: selectedClass ? selectedClass.name : '',
+      status: form.status,
+      address: form.address,
+      guardian_name: form.guardian_name,
+      guardian_phone: form.guardian_phone,
+      guardian_email: form.guardian_email,
+      guardian_relation: form.guardian_relation
     }
     await studentStore.createStudent(studentData)
     router.push('/students')

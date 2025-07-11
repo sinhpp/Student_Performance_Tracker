@@ -2,27 +2,33 @@
 
 namespace Database\Seeders;
 
-use App\Models\Subject;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\Subject;
 
 class SubjectSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Run the database seeder.
      */
     public function run(): void
     {
         $subjects = [
-            ['name' => 'Mathematics', 'code' => 'MATH001', 'teacher_name' => 'Dr. Smith'],
-            ['name' => 'English', 'code' => 'ENG001', 'teacher_name' => 'Ms. Johnson'],
-            ['name' => 'Science', 'code' => 'SCI001', 'teacher_name' => 'Mr. Davis'],
-            ['name' => 'History', 'code' => 'HIST001', 'teacher_name' => 'Mrs. Brown'],
-            ['name' => 'Physical Education', 'code' => 'PE001', 'teacher_name' => 'Coach Wilson'],
+            ['name' => 'Mathematics', 'code' => 'MATH', 'teacher_name' => 'Dr. Smith'],
+            ['name' => 'Science', 'code' => 'SCI', 'teacher_name' => 'Prof. Johnson'],
+            ['name' => 'English', 'code' => 'ENG', 'teacher_name' => 'Ms. Williams'],
+            ['name' => 'History', 'code' => 'HIST', 'teacher_name' => 'Mr. Brown'],
+            ['name' => 'Geography', 'code' => 'GEO', 'teacher_name' => 'Dr. Davis'],
+            ['name' => 'Computer Science', 'code' => 'CS', 'teacher_name' => 'Prof. Wilson'],
+            ['name' => 'Art', 'code' => 'ART', 'teacher_name' => 'Ms. Taylor'],
+            ['name' => 'Physical Education', 'code' => 'PE', 'teacher_name' => 'Coach Miller'],
         ];
 
         foreach ($subjects as $subject) {
-            Subject::create($subject);
+            Subject::firstOrCreate(
+                ['code' => $subject['code']],
+                $subject
+            );
         }
     }
 }

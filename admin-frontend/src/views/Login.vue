@@ -1,7 +1,7 @@
 <template>
-  <UnifiedLogin />
+  <UnifiedLoginFixed />
 </template>
 
 <script setup>
-import UnifiedLogin from '@/components/UnifiedLogin.vue'
+import UnifiedLoginFixed from '@/components/UnifiedLoginFixed.vue'
 </script>

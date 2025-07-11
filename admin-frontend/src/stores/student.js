@@ -32,16 +32,21 @@ export const useStudentStore = defineStore('student', {
   },
 
   actions: {
-    async fetchStudents(page = 1) {
+    async fetchStudents(page = 1, additionalParams = {}) {
       this.loading = true
       try {
         const params = {
           page,
           per_page: this.pagination.per_page,
-          search: this.filters.search,
-          class_id: this.filters.class_id,
-          subject_id: this.filters.subject_id
+          ...additionalParams
         }
+
+        // Remove empty values
+        Object.keys(params).forEach(key => {
+          if (params[key] === '' || params[key] === null || params[key] === undefined) {
+            delete params[key]
+          }
+        })
 
         const response = await api.get('/admin/students', { params })
         this.students = response.data.data

@@ -65,6 +65,18 @@ export const useUnifiedAuthStore = defineStore('unifiedAuth', {
           return { user: this.user, access_token: this.token }
         }
         
+        if (credentials.email === 'teacher@example.com' && credentials.password === 'teacher123' && credentials.role === 'teacher') {
+          this.token = 'demo-teacher-token'
+          this.user = { 
+            id: 3, 
+            name: 'Demo Teacher', 
+            email: 'teacher@example.com', 
+            role: 'teacher' 
+          }
+          localStorage.setItem('auth_token', this.token)
+          return { user: this.user, access_token: this.token }
+        }
+        
         if (credentials.email === 'student@example.com' && credentials.password === 'student123' && credentials.role === 'student') {
           this.token = 'demo-student-token'
           this.user = { 
@@ -118,6 +130,13 @@ export const useUnifiedAuthStore = defineStore('unifiedAuth', {
             name: 'Demo Admin', 
             email: 'admin@example.com', 
             role: 'admin' 
+          }
+        } else if (this.token === 'demo-teacher-token') {
+          this.user = { 
+            id: 3, 
+            name: 'Demo Teacher', 
+            email: 'teacher@example.com', 
+            role: 'teacher' 
           }
         } else if (this.token === 'demo-student-token') {
           this.user = { 
